@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spilltune"
+dynamic = ["version"]
+description = "Find the fastest llama-server settings for a model that does not fit in your GPU."
+readme = "README.md"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
+authors = [{ name = "0xydendrum" }]
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["llm", "llama.cpp", "gguf", "speculative-decoding", "vram", "moe", "benchmark", "tuning"]
+classifiers = [
+    "Environment :: Console",
+    "License :: Other/Proprietary License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.scripts]
+spilltune = "spilltune.cli:entry"
+
+[tool.setuptools]
+packages = ["spilltune"]
+
+[tool.setuptools.dynamic]
+version = { attr = "spilltune.__version__" }
