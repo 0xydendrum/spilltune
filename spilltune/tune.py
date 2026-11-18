@@ -49,8 +49,9 @@ def helper_reserve_mib(draft_info, spec_type):
 
 class Tuner:
     def __init__(self, model, feats, runner, draft=None, spec_type=None, cache_path=None, say=print,
-                 key_extra=None, parallel=0, max_trials=40):
+                 key_extra=None, parallel=0, max_trials=40, ctx=server.DEFAULT_CTX):
         self.model, self.feats, self.runner = model, feats, runner
+        self.ctx = ctx
         self.draft, self.spec_type = draft, spec_type
         self.say, self.parallel, self.max_trials = say, parallel, max_trials
         self.key_extra = key_extra or {}
@@ -70,7 +71,7 @@ class Tuner:
 
     # ---- plumbing -----------------------------------------------------------------------------------------
     def base_args(self):
-        a = list(server.BASE_ARGS)
+        a = ["-c", str(self.ctx), "-np", "1"]
         if self.feats.no_webui:
             a.append("--no-webui")
         if self.feats.cache_ram:
@@ -86,7 +87,7 @@ class Tuner:
             return ["--fit", "on", "--fit-target", str(int(margin))]
         if self.feats.fit:
             return ["--fit", "on"]
-        return manual_placement(self.model, margin)
+        return manual_placement(self.model, margin, ctx=self.ctx)
 
     def helper(self, n, p=None):
         a = ["-md", str(self.draft.path), "-ngld", "99", "--spec-type", self.spec_type,
@@ -254,7 +255,7 @@ class Tuner:
         args = [a for a in b]
         i = args.index("-np"); del args[i:i + 2]
         i = args.index("-c"); del args[i:i + 2]
-        args += ["-np", str(n), "-c", str(4096 * n), "-ctk", "q8_0", "-ctv", "q8_0"] + self.placement(m)
+        args += ["-np", str(n), "-c", str(self.ctx * n), "-ctk", "q8_0", "-ctv", "q8_0"] + self.placement(m)
         self.run(Trial(f"{n} slots, 8-bit memory cache", "parallel", args, {}, levels))
 
     # ---- results ------------------------------------------------------------------------------------------
@@ -267,11 +268,19 @@ class Tuner:
                 "per_kind": kinds, "advice": advice}
 
 
-def manual_placement(model, margin, vram_free_mib=None):
+KV_MIB_PER_4K = 512
+
+
+def manual_placement(model, margin, vram_free_mib=None, ctx=server.DEFAULT_CTX):
     """Fallback for llama.cpp builds without --fit: estimate -ngl / --n-cpu-moe from the GGUF sizes."""
     from . import hw
     free = vram_free_mib if vram_free_mib is not None else sum(g.free_mib for g in hw.gpus())
     budget = (free - margin - 1200) * 2 ** 20           # ~1.2 GiB for cache + compute at 4K context
+    if ctx > server.DEFAULT_CTX:
+        # Extra KV cache for a longer context. Not estimated from GGUF metadata: hybrid (Qwen3.5/3.8) and
+        # sliding-window (Gemma 4) models cache only some layers, so a metadata formula was 4-47x too high.
+        # Measured full-context cache at 4K on four models was 80-320 MiB; reserve 512 MiB per extra 4K.
+        budget -= int(KV_MIB_PER_4K * (ctx / server.DEFAULT_CTX - 1)) * 2 ** 20
     if model.is_moe:
         gpu = sum(model.layer_bytes) + model.other_bytes
         n = 0

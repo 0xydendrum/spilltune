@@ -31,6 +31,9 @@ def build_parser():
     p.add_argument("--prompts", type=int, default=4, help="how many of the 4 built-in test prompts to use")
     p.add_argument("--max-tokens", type=int, default=192, help="tokens generated per prompt (default 192)")
     p.add_argument("--quick", action="store_true", help="2 prompts x 128 tokens: faster, noisier")
+    p.add_argument("--ctx", type=int, default=4096, metavar="TOKENS",
+                   help="context length to tune for, per slot (default 4096). Use what you will run with: "
+                        "a longer context needs more VRAM, which changes the best placement")
     p.add_argument("--max-trials", type=int, default=40, help="stop after this many model loads")
     p.add_argument("--out", help="output folder (default: ./spilltune-out/<model name>)")
     p.add_argument("--fresh", action="store_true", help="ignore saved trial results and measure everything again")
@@ -43,6 +46,8 @@ def main(argv=None):
     a = build_parser().parse_args(argv)
     if a.quick:
         a.prompts, a.max_tokens = 2, 128
+    if a.ctx < 512:
+        build_parser().error("--ctx must be at least 512 tokens")
     say = lambda s="": print(s, flush=True)
 
     srv = find_server(a.server)
@@ -72,6 +77,8 @@ def main(argv=None):
     say(f"Model:    {model.name}: {model.file_bytes / G:.1f} GB, {model.n_layers} layers"
         + (f", MoE with {model.expert_count} experts ({sum(model.expert_bytes) / G:.1f} GB of expert weights)"
            if model.is_moe else ", dense"))
+    say(f"Context:  {a.ctx} tokens per slot"
+        + (" (llama-server sizes the cache; --fit plans around it)" if feats.fit_target else ""))
     if draft:
         say(f"Helper:   {draft.name}: {draft.file_bytes / G:.2f} GB, --spec-type {spec_type}")
     say(f"Server:   {' '.join(server_cmd)} ({feats.version})")
@@ -96,7 +103,7 @@ def main(argv=None):
         say(f"warning: this llama-server does not list --spec-type {spec_type}; the helper stage will be skipped.")
 
     if a.dry_run:
-        t = tune.Tuner(model, feats, None, draft, spec_type)
+        t = tune.Tuner(model, feats, None, draft, spec_type, ctx=a.ctx)
         say("\nPlan (adaptive, so the exact trials depend on what gets faster):")
         say("  1. placement: llama-server defaults, then --fit with 512 / 256 MiB spare VRAM while it keeps helping"
             if feats.fit_target else "  1. placement: llama-server defaults only (this build has no --fit-target)")
@@ -127,7 +134,7 @@ def main(argv=None):
 
     say(f"\nResults are saved as each trial finishes (re-run to resume): {cache}\n")
     tuner = tune.Tuner(model, feats, runner, draft, spec_type, cache_path=cache, say=say, parallel=a.parallel,
-                       max_trials=a.max_trials,
+                       max_trials=a.max_trials, ctx=a.ctx,
                        key_extra={"prompts": prompts.VERSION, "n": a.prompts, "max_tokens": a.max_tokens,
                                   "server": feats.version})
     try:

@@ -21,6 +21,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
+[project.urls]
+Homepage = "https://github.com/0xydendrum/spilltune"
+Repository = "https://github.com/0xydendrum/spilltune"
+Changelog = "https://github.com/0xydendrum/spilltune/blob/main/CHANGELOG.md"
+Issues = "https://github.com/0xydendrum/spilltune/issues"
+
 [project.scripts]
 spilltune = "spilltune.cli:entry"
 

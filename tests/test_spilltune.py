@@ -239,6 +239,21 @@ class TunerTests(unittest.TestCase):
         self.assertEqual(a[:3], ["-ngl", "99", "--n-cpu-moe"])
         self.assertGreater(int(a[3]), 0)
 
+    def test_longer_context_puts_fewer_layers_on_gpu(self):
+        n4k = int(tune.manual_placement(model(), 1024, vram_free_mib=11500)[1])
+        n32k = int(tune.manual_placement(model(), 1024, vram_free_mib=11500, ctx=32768)[1])
+        # 7 extra 4K blocks x 512 MiB = 3.5 GiB less budget; layers are 280 MiB -> about 12 fewer
+        self.assertTrue(10 <= n4k - n32k <= 14, (n4k, n32k))
+
+    def test_ctx_reaches_server_args(self):
+        calls = []
+        tune.Tuner(model(), FEATS, fake_runner(lambda a, e: 5.0, calls), say=lambda s: None, ctx=16384,
+                   parallel=4).tune()
+        first = calls[0].args
+        self.assertEqual(first[first.index("-c") + 1], "16384")
+        par = [t for t in calls if t.concurrency][0].args
+        self.assertEqual(par[par.index("-c") + 1], str(16384 * 4))
+
 
 class PMinAndKindTests(unittest.TestCase):
     def draft(self):

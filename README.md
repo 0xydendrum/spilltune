@@ -43,10 +43,10 @@ Report: spilltune-out\gemma-4-31B-it-Q4_K_M\report.html
 Needs Python 3.9+ and a llama.cpp build with `llama-server`. No other packages.
 
 ```
-pip install git+https://github.com/0xydendrum/spilltune
+pip install spilltune
 ```
 
-or clone the repo and run `python -m spilltune ...`.
+or `pip install git+https://github.com/0xydendrum/spilltune` for the latest commit, or clone the repo and run `python -m spilltune ...`.
 
 ## Use
 
@@ -173,8 +173,9 @@ questions, the helper setups scored within about 1 point of the same model fully
   spilltune also handles); AMD, Intel and Apple GPUs are untested, and overflow detection reads CUDA, ROCm,
   Vulkan, SYCL and Metal log lines but has only been checked against CUDA.
 - One GPU. Multi-GPU split tuning is not done yet.
-- Context is fixed at 4096 tokens per slot during tuning. A much longer context uses more VRAM, so leave more
-  spare or re-run with your settings in mind.
+- Tunes at 4096 tokens of context per slot unless you pass `--ctx`. A longer context needs more VRAM, so tune
+  with the context you will actually run (`--ctx 32768`). With `--fit` llama.cpp sizes the cache itself; on older
+  builds without it spilltune reserves 512 MiB per extra 4K tokens, a bound from four measured models.
 - Speeds are for the built-in prompts. Your own text may accept more or fewer guesses.
 - A helper only speeds things up when it was made for that exact model; spilltune refuses a helper whose width
   doesn't match.
@@ -193,4 +194,4 @@ and VRAM can hold them. Running spilltune inside spillsafe keeps it from collidi
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE). Free for personal, research and non-commercial use.
+[PolyForm Noncommercial 1.0.0](https://github.com/0xydendrum/spilltune/blob/main/LICENSE). Free for personal, research and non-commercial use.

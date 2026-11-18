@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 (2026-11-18)
+
+- **`--ctx TOKENS`** tunes for the context length you will run (default 4096). It goes to every trial (`-c`), and the
+  parallel stage uses `--ctx` x slots. Saved trials at a different context are not reused. Checked on an RTX 3060
+  with Qwen3.5-35B-A3B at 32K: llama-server got `n_ctx = 32768` and a 640 MiB KV cache (8x the 80 MiB at 4K).
+- Published on PyPI: `pip install spilltune`.
+
 ## 0.2.0 (2026-11-17)
 
 - **Confidence cut-off for helpers.** On llama.cpp builds with `--spec-draft-p-min`, the helper stage tries a

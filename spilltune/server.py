@@ -10,7 +10,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
-BASE_ARGS = ["-c", "4096", "-np", "1"]
+DEFAULT_CTX = 4096
+BASE_ARGS = ["-c", str(DEFAULT_CTX), "-np", "1"]
 SPILL_ABORT_MIB = 1024
 GPU_BACKENDS = r"CUDA|ROCm|HIP|Vulkan|Metal|SYCL|MUSA|CANN|OpenCL"
 
